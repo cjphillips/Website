@@ -1,0 +1,216 @@
+<!-- Names: Colin Phillips -->
+<!-- Id:    11357836 -->
+<html>
+<link rel="stylesheet" type="text/css" href="hw7.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.0/jquery.min.js"></script>
+<script language="JavaScript">
+
+// For simplicity, use this hard-coded URL as the base URL for your
+// requests. Use XMLHttpRequest and have the URL be g_serviceURL
+// plus a concatenated portion as appropriate.
+var g_serviceURL = "http://localhost:8080/";
+
+function PageLoaded()
+{
+	var req = new XMLHttpRequest();
+	req.open('GET', g_serviceURL + "lists", true);
+	req.onload = function()
+	{
+		if (req.readyState === req.DONE)
+		{
+			if (req.status === 200)
+			{
+				renderTable(req.responseXML)
+			}
+		}
+	}
+
+	req.send();
+}
+
+function renderTable(xml)
+{
+	var resultsDiv = $("#results");
+	resultsDiv.empty();
+
+	var table = $("<table id=\"resultsTable\"></table>");
+	var headers = $("<tr></tr>");
+	$("<th>Name</th>").appendTo(headers);
+	$("<th>Size (bytes)</th>").appendTo(headers);
+	$("<th>Last Accessed</th>").appendTo(headers);
+	headers.appendTo(table);
+
+	var listings = getRowsFromXml(xml);
+	for(var i = 0; i < listings.length; i++)
+	{
+		table.insertRow
+		listings[i].rowElement.appendTo(table);
+	}
+
+	table.appendTo(resultsDiv);
+
+	console.log(xml);
+}
+
+function getRowsFromXml(xml, leftMargin, dirStart)
+{
+	if (leftMargin === undefined) leftMargin = 5;
+	if (dirStart === undefined) dirStart = 0;
+
+	var parsedRows = new Array();
+	var listings = xml.getElementsByTagName("file_list")[0].childNodes;
+	var dirIndex = 0, rowIndex = 0;
+	for(var i = 0; i < listings.length; i++)
+	{
+		var type = listings[i].localName;
+		if (type == "file")
+		{
+			var fileListing = buildFileRow(listings[i], leftMargin);
+			rowIndex++;
+			parsedRows.push(fileListing);
+		}
+		else if (type == "directory")
+		{
+			var dirListing = buildDirectoryRow(listings[i], dirIndex, rowIndex, leftMargin);
+			dirIndex++;
+			rowIndex++;
+			parsedRows.push(dirListing);
+		}
+		else {
+			continue;
+		}
+	}
+
+	return parsedRows;
+}
+
+function writeError(err)
+{
+
+}
+
+function buildFileRow(file, leftMargin)
+{
+	var row = $("<tr></tr>");
+
+	var parsed = {
+		name: file.children[0].textContent,
+		size: file.children[1].textContent,
+		atime: file.children[2].textContent,
+		ctime: file.children[3].textContent,
+		mtime: file.children[4].textContent,
+		path: file.getAttribute("path"),
+		isDirectory: false
+	}
+
+	href = g_serviceURL + "files" + parsed.path;
+
+	var link = "<a href='" + href + "'>" + parsed.name + "</a>";
+
+	$("<td style=\"padding-left:" + leftMargin + "px\">" + link + "</td>").appendTo(row);
+	$("<td>" + parsed.size + "</td>").appendTo(row);
+	$("<td>" + parsed.atime + "</td>").appendTo(row);
+
+	return { listing: parsed, rowElement: row };
+}
+
+function buildDirectoryRow(dir, dirIndex, rowIndex, leftMargin)
+{
+	var row = $("<tr></tr>");
+
+	var parsed = {
+		name: dir.children[0].textContent,
+		size: dir.children[1].textContent,
+		atime: dir.children[2].textContent,
+		ctime: dir.children[3].textContent,
+		mtime: dir.children[4].textContent,
+		path: dir.getAttribute("path"),
+		parentDir: dirIndex,
+		dirRow: rowIndex,
+		isDirectory: true,
+		expanded: false,
+		leftMargin: leftMargin
+	}
+
+	row.attr("id", parsed.path + "__row");
+	var button = "<button type='button' id=\"" + parsed.path + "__button\""
+	button += "onclick=\"toggleDirectory(" + parsed.path + ")\">+</button>";
+
+	$("<td style=\"padding-left:" + leftMargin + "px\">" + parsed.name + "  " + button + "</td>").appendTo(row);
+	$("<td></td>").appendTo(row);
+	$("<td>" + parsed.atime + "</td>").appendTo(row);
+
+	row[0].listing = parsed;
+
+	return { listing: parsed, rowElement: row };
+}
+
+function toggleDirectory(path)
+{
+	var dirRow = document.getElementById(path + "__row");
+	var button = document.getElementById(path + "__button");
+	var table = document.getElementById("resultsTable");
+
+	if (dirRow.listing.expanded)
+	{
+		button.textContent = "+";
+
+		for(var i = 1; i <= dirRow.listing.listingsCount; i++)
+		{
+			table.deleteRow(dirRow.rowIndex + 1)
+		}
+ 		// TODO: Remove rows
+
+		dirRow.listing.expanded = false;
+	}
+	else
+	{
+		var req = new XMLHttpRequest();
+		req.open('GET', g_serviceURL + "lists" + dirRow.listing.path, true);
+		req.onload = function()
+		{
+			if (req.readyState === req.DONE)
+			{
+				if (req.status === 200)
+				{
+					var listings = getRowsFromXml(req.responseXML, dirRow.listing.leftMargin + 20);
+					var currentRow = dirRow;
+					currentRow.listing.listingsCount = listings.length;
+
+					for(var rowOffset = 0; rowOffset < listings.length; rowOffset++)
+					{
+						insertAfter(listings[rowOffset].rowElement[0], currentRow);
+						currentRow = listings[rowOffset].rowElement[0];
+
+						if (currentRow.isDirectory)
+						{
+
+						}
+					}
+
+					button.textContent = "-";
+					dirRow.listing.expanded = true;
+				}
+			}
+		}
+
+		req.send();
+	}
+}
+
+function insertAfter(newNode, target)
+{
+	var parent = target.parentNode;
+
+	parent.lastChild == target
+		? parent.appendChild(newNode)
+		: parent.insertBefore(newNode, target.nextSibling);
+}
+
+</script>
+	<body onload="PageLoaded()">
+		<div id="results">
+			<p>(loading...)</p>
+		</div>
+	</body>
+</html>

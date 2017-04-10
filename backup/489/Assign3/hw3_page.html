@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<!-- DO NOT MODIFY THIS FILE -->
+<html>
+
+<script src="hw2_code.js"></script>
+<script src="hw3_code.js"></script>
+<script>
+
+// The unit tests can be used on BST or Set489
+var treeTypeNames = ["BST", "Set489"];
+var treeTypeIDs = ["u", "rb"];
+
+function AllTests()
+{
+    var resultsDIV = document.getElementById("resultsDIV");
+    resultsDIV.innerHTML = "";
+    
+    var grpNum = 1;
+    var treeTypeName;
+    
+    // Check some basic aspects (adding numbers and finding maximum value)
+    for (var i = 0; i < treeTypeNames.length; i++)
+    {
+        treeTypeName = treeTypeNames[i];
+        if (window[treeTypeName] === undefined)
+        {
+            resultsDIV.innerHTML += "<font color='red'>FAIL: Missing type (constructor function) \"" +
+                treeTypeNames[i] + "\"</font><br>";
+            return;
+        }
+        
+        // Initialize the BST
+        var tree = new window[treeTypeName]();
+        
+        // Now run a set of test cases with randomized values and keep track of maximum
+        var randomizedTestCount = 30;
+        resultsDIV.innerHTML += ("<br><b>Results from " + randomizedTestCount +
+                                 " test cases (group " + grpNum + "):</b><br>");
+        for (var i = 1; i <= randomizedTestCount; i++)
+        {
+            var maxVal = -1;
+            tree = new window[treeTypeName]();
+            for (var j = 0; j < 1000; j++)
+            {
+                var randNum = Math.floor(Math.random() * 500000000);
+                tree.add(randNum);
+                if (randNum > maxVal) { maxVal = randNum; }
+            }
+
+            // See if the test passed
+            var actual = tree.getMax();
+            if (maxVal == actual)
+            {
+                resultsDIV.innerHTML += ("<font color='green'>" + i + ". OK: Maximum was " +
+                                         actual + "</font><br>");
+            }
+            else
+            {
+                resultsDIV.innerHTML += ("<font color='red'>" + i + ". FAIL: Expected: \"" +
+                                         maxVal + "\", actual: \"" + actual + "\"</font><br>");
+            }
+        }
+        
+        grpNum++;
+    }
+    
+    DoInsertionOrderTestCases(resultsDIV, treeTypeNames[0], grpNum);
+    grpNum++;
+    DoInsertionOrderTestCases(resultsDIV, treeTypeNames[1], grpNum);
+    grpNum++;
+    
+    // Next set of test cases operates on all tree types
+    for (var tti = 0; tti < treeTypeNames.length; tti++)
+    {
+        treeTypeName = treeTypeNames[tti];
+        
+        // Next set of test cases involve multiple operations on a single tree
+        resultsDIV.innerHTML += ("<br><b>General test cases (group " + grpNum + ", " + treeTypeName + "):</b><br>");
+        var reusableArr;
+        // Each 'step' is an array (optional parameters are ignored if undefined):
+        //   0: "rb" if this step is red-black-tree-specific, "u" if it is specific to the standard unbalanced
+        //      binary search tree, or null if it's not specific to a particular tree type
+        //   1: name of the member function to invoke
+        //   2: an array of function parameters (empty array if 0-parameter function)
+        //   3: (optional) expected return value from function call
+        //   4: (optional) expected string if we call toString on the tree after this step
+        //   5: (optional) expected array to compare against 'reusableArr'
+        var steps = [
+            [null, "add", [77], true, "77"],
+            [null, "add", [66], true, "66 77"],
+            [null, "add", [55], true, "55 66 77"],
+            [null, "add", [44], true, "44 55 66 77"],
+            [null, "add", [33], true, "33 44 55 66 77"],
+            [null, "add", [22], true, "22 33 44 55 66 77"],
+            [null, "add", [11], true, "11 22 33 44 55 66 77"],
+            [null, "add", [99], true, "11 22 33 44 55 66 77 99"],
+            [null, "add", [88], true, "11 22 33 44 55 66 77 88 99"],
+            [null, "clear", []],
+                     
+            [null, "addMultiple", [[42, 66, 101, 54, 42, 87]], 5, "42 54 66 87 101"],
+            [null, "has", [87], true],
+            [null, "has", [64], false],
+            [null, "getMin", [], 42],
+            [null, "getMax", [], 101],
+            [null, "clear", []],
+            
+            [null, "add", [56], true, "56"],
+            [null, "has", [56], true],
+            [null, "getLevel", [5], -1, "56"],
+            [null, "add", [56], false, "56"],
+            [null, "has", [56], true],
+            [null, "has", [5], false],
+            [null, "add", [5], true, "5 56"],
+            [null, "add", [42], true, "5 42 56"],
+            [ "u", "countLevels", [], 3], // 3 in regular BST
+            ["rb", "countLevels", [], 2], // 2 in RB tree
+            [null, "add", [61], true, "5 42 56 61"],
+            [null, "add", [73], true, "5 42 56 61 73"],
+            [null, "add", [88], true, "5 42 56 61 73 88"],
+            [null, "getLevel", [88], 3, "5 42 56 61 73 88"], // 3 in regular BST and in RB tree
+            [null, "forEach", [function(v,t){reusableArr.push(v);}, true], undefined, undefined, [56,5,42,61,73,88]],
+            [null, "forEach", [function(v,t){reusableArr.push(v);}, false], undefined, undefined, [5,42,56,61,73,88]],
+            [ "u", "getLevel", [56], 0], // 0 in regular BST
+            ["rb", "getLevel", [56], 2], // 2 in RB tree
+            [null, "add", [7], true, "5 7 42 56 61 73 88"],
+            [null, "has", [7], true],
+            [null, "remove", [56], true, "5 7 42 61 73 88"],
+            [null, "forEach", [function(v,t){reusableArr.push(v);}, true], undefined, undefined, [5,42,61,73,88,7]],
+            ["rb", "getLevel", [42], 0], // 0 in RB tree
+            ["rb", "getLevel", [5], 1], // 1 in RB tree
+            ["rb", "getLevel", [73], 1], // 1 in RB tree
+            ["rb", "getLevel", [7], 2], // 2 in RB tree
+            ["rb", "getLevel", [61], 2], // 2 in RB tree
+            ["rb", "getLevel", [88], 2], // 2 in RB tree
+            [null, "add", [1], true, "1 5 7 42 61 73 88"],
+            ["rb", "countLevels", [], 3], // 3 in RB tree (fully populated)
+            [null, "clear", []],
+                     
+            [null, "remove", [77], false],
+            [null, "addMultiple", [[77,66,55,44,33,22,11,99,88]], 9, "11 22 33 44 55 66 77 88 99"],
+            [null, "getMax", [], 99],
+            [null, "getMin", [], 11],
+            [null, "remove", [77], true, "11 22 33 44 55 66 88 99"],
+            ["rb", "getLevel", [44], 1], // 1 in RB tree
+            [ "u", "getLevel", [44], 2], // 2 in regular BST
+            ["rb", "getLevel", [11], 3], // 3 in RB tree
+            [ "u", "getLevel", [11], 5], // 5 in regular BST
+            ["rb", "countLevels", [], 4], // 4 in RB tree
+            [ "u", "countLevels", [], 6], // 6 in regular BST
+            [null, "getLevel", [66], 0], // 0 (root) for both
+            [null, "remove", [66], true, "11 22 33 44 55 88 99"],
+            ["rb", "getLevel", [11], 2], // 2 in RB tree
+            [ "u", "getLevel", [11], 4], // 4 in regular BST
+            [null, "getMin", [], 11],
+            [null, "clear", []],
+                     
+            [null, "add", [12345], true, "12345"],
+            [null, "remove", [12345], true, ""],
+            [null, "addMultiple", [[101,12]], 2, "12 101"],
+            [null, "getLevel", [101], 0],
+            [null, "getLevel", [12], 1],
+            [null, "remove", [12], true, "101"],
+            [null, "remove", [12], false, "101"],
+            [null, "remove", [101], true, ""],
+            [null, "addMultiple", [[62,99,3812,86,1234,10,4444]], 7, "10 62 86 99 1234 3812 4444"],
+            ["rb", "countLevels", [], 3], // 3 in RB tree
+            [ "u", "countLevels", [], 4], // 4 in regular BST
+            ["rb", "getLevel", [10], 2], // 2 in RB tree
+            [ "u", "getLevel", [10], 1], // 1 in regular BST
+            ["rb", "getLevel", [62], 1], // 1 in RB tree
+            [ "u", "getLevel", [62], 0], // 0 in regular BST
+            [null, "getLevel", [86], 2], // 2 in both
+            ["rb", "getLevel", [99], 0], // 0 in RB tree
+            [ "u", "getLevel", [99], 1], // 1 in regular BST
+            ["rb", "getLevel", [1234], 2], // 2 in RB tree
+            [ "u", "getLevel", [1234], 3], // 3 in regular BST
+            ["rb", "getLevel", [3812], 1], // 1 in RB tree
+            [ "u", "getLevel", [3812], 2], // 2 in regular BST
+            ["rb", "getLevel", [4444], 2], // 2 in RB tree
+            [ "u", "getLevel", [4444], 3], // 3 in regular BST
+        ];
+        var tree1 = new window[treeTypeName]();
+        var testStats = new Object();
+        for (var i = 0; i < steps.length; i++)
+        {
+            reusableArr = new Array();
+            var step = steps[i];
+            
+            resultsDIV.innerHTML += ("Test " + (i+1).toString() + " of " + steps.length +
+                                     ": " + step[1] + "(" + step[2].toString() + ")<br>");
+                                     
+            // Skip the step if it's not meant for this tree type
+            if (step[0] !== null && step[0] != treeTypeIDs[tti])
+            {
+                resultsDIV.innerHTML += "(skipped)<br><br>";
+                continue;
+            }
+            
+            // Add an entry to the test statistics if need be
+            if (testStats[step[1]] === undefined)
+            {
+                testStats[step[1]] = [1, 0];
+            }
+            else
+            {
+                testStats[step[1]][0]++;
+            }
+            
+            // First make sure that the tree actually has the member function
+            if (tree1[step[1]] === undefined)
+            {
+                var s = "FAIL: Tree missing member function \"" + step[1]+ "\".";
+                resultsDIV.innerHTML += ("<font color='red'>" + s + "</font><br>");
+                continue;
+            }
+            
+            var ret = tree1[step[1]].apply(tree1, step[2]);
+            var hadFail = false;
+            
+            // Validate return value if need be
+            if (step[3] !== undefined)
+            {
+                if (step[3] !== ret)
+                {
+                    var s = "FAIL: Expected return value from \"" + step[1] + "\" call was " +
+                        step[3] + ", but actual return value was " + ret+ ".";
+                    resultsDIV.innerHTML += ("<font color='red'>" + s + "</font><br>");
+                    hadFail = true;
+                }
+                else
+                {
+                    resultsDIV.innerHTML += ("<font color='green'>OK: Return value === " +
+                                             ret + "</font><br>");
+                }
+            }
+            
+            // Validate toString() result if need be
+            if (step[4] !== undefined)
+            {
+                var treeToString = tree1.toString();
+                if (step[4] !== treeToString)
+                {
+                    var s = "FAIL: Expected return value from toString() call was \"" +
+                        step[4] + "\", but actual return value was \"" + treeToString + "\".";
+                    resultsDIV.innerHTML += ("<font color='red'>" + s + "</font><br>");
+                    hadFail = true;
+                }
+                else
+                {
+                    resultsDIV.innerHTML += ("<font color='green'>OK: toString() === \"" +
+                                             treeToString + "\"</font><br>");
+                }
+            }
+            
+            // Validate reusable array contents if need be
+            if (step[5] !== undefined)
+            {
+                if (!AreArraysEqual(reusableArr, step[5]))
+                {
+                    var s = "FAIL: Array contents not equal to expected.";
+                    resultsDIV.innerHTML += ("<font color='red'>" + s + "</font><br>");
+                    hadFail = true;
+                }
+            }
+            
+            // Doesn't hurt to verify all parent references every step of the way
+            var parentRefsMsg = TestParentReferences(tree1);
+            if (parentRefsMsg !== null)
+            {
+                resultsDIV.innerHTML += ("<font color='red'>" + parentRefsMsg + "</font><br>");
+                hadFail = true;
+            }
+            
+            // If no failures, just display "PASS" in green
+            if (!hadFail)
+            {
+                resultsDIV.innerHTML += "<font color='green'>PASS</font><br>";
+                
+                // Also increment pass count for this function
+                testStats[step[1]][1]++;
+            }
+            
+            // Helps with visual clarity to have a blank line after each test output
+            resultsDIV.innerHTML += "<br>";
+            
+            //TestParentReferences(group4Trees[i], i+1, resultsDIV);
+        }
+        
+        // Display test statistics
+        resultsDIV.innerHTML += "<b>Test Statistics:</b><br>";
+        for (var funcName in testStats)
+        {
+            var pair = testStats[funcName];
+            var clr;
+            if (pair[1] === pair[0])
+            {
+                clr = "<font color='green'>";
+            }
+            else if (pair[1] >= pair[0] * 0.5)
+            {
+                clr = "<font color='orange'>";
+            }
+            else
+            {
+                clr = "<font color='red'>";
+            }
+            var percent = (pair[1] / pair[0]) * 100.0;
+            resultsDIV.innerHTML += (clr + funcName + ": " + percent + "% passed</font><br>");
+        }
+        
+        grpNum++;
+    }
+}
+
+function AreArraysEqual(arr1, arr2)
+{
+    if (arr1.length != arr2.length)
+    {
+        return false;
+    }
+    
+    for (var i = 0; i < arr1.length; i++)
+    {
+        // If any 2 elements mismatch, then the arrays are not equal
+        if (arr1[i] !== arr2[i]) { return false; }
+    }
+    return true;
+}
+
+function DoInsertionOrderTestCases(resultsDIV, treeTypeName, grpNum)
+{
+    // First construct a tree and make sure it has m_first and m_last members
+    var tree = new window[treeTypeName]();
+    if (tree.m_first === undefined)
+    {
+        resultsDIV.innerHTML += ("<br><b>Results from (group " + grpNum +
+                                 "): All fail since tree does not have an m_first member</b><br>");
+        return;
+    }
+    if (tree.m_last === undefined)
+    {
+        resultsDIV.innerHTML += ("<br><b>Results from (group " + grpNum +
+                                 "): All fail since tree does not have an m_last member</b><br>");
+        return;
+    }
+    if (tree.forEach === undefined)
+    {
+        resultsDIV.innerHTML += ("<br><b>Results from (group " + grpNum +
+                                 "): All fail since tree does not have 'forEach' member</b><br>");
+        return;
+    }
+    
+    // Run the tests for the insertion-order traversals
+    var insertionOrderTestCases = [
+        [[[true,123], [true,12], [true,456]], [123,12,456]],
+        [[[true,42], [true,66], [true,101], [true,54], [true,42], [true,87]], [42,66,101,54,87]],
+        [[[true,77], [true,66], [true,55], [true,44], [true,33], [true,22], [true,11], [true,99], [true,88]], [77,66,55,44,33,22,11,99,88]],
+        [[[true,846], [true,1], [true,99], [true,54], [true,2], [false,1], [true,978], [true,456], [true,632], [false,846]], [99,54,2,978,456,632]],
+        [[[true,22], [true,77], [true,19], [true,80], [true,64], [true,89763], [true,4588], [true,1], [true,2], [true,3], [false,77], [true,17], [false,80], [true,70001], [true,16]], [22,19,64,89763,4588,1,2,3,17,70001,16]],
+        [[[true,6412], [false,6412]], []],
+        [[[true,5], [true,4], [true,3], [true,2], [true,8], [false,8]], [5,4,3,2]],
+        [[[true,5], [true,4], [true,3], [true,2], [true,8], [false,5]], [4,3,2,8]],
+        [[[true,5], [true,4], [true,3], [true,2], [true,8], [false,4]], [5,3,2,8]],
+        [[[true,50], [true,42], [true,39], [false,42], [false,50], [false,39], [true,17], [true,66], [true,84], [false,66]], [17,84]]
+    ];
+
+    resultsDIV.innerHTML += ("<br><b>Results from " + insertionOrderTestCases.length +
+                             " insertion-order-related test cases (group " + grpNum +
+                             ", " + treeTypeName + "):</b><br>");
+    
+    for (var i = 0; i < insertionOrderTestCases.length; i++)
+    {
+        // Initialize a new tree for the test
+        tree = new window[treeTypeName]();
+        
+        var testCase = insertionOrderTestCases[i];
+        var ops = testCase[0];
+        var expected = testCase[1];
+        
+        // Add/remove all necessary items
+        for (var j = 0; j < ops.length; j++)
+        {
+            if (ops[j][0]) { tree.add(ops[j][1]); }
+            else { tree.remove(ops[j][1]); }
+        }
+        
+        // Get an unordered array of all the tree nodes
+        var allNodesInTree = GetAllNodes(tree);
+        
+        // Do a manual verification of the insertion-order linked-list
+        var actual = new Array();
+        var info = ValidateLL(tree);
+        if (!info.treeOK)
+        {
+            var msg = "<font color='red'>" +
+                (i+1).toString() + ". FAIL: " +
+                info.messages.replace("\n","<br>") +
+                "</font><br>";
+            resultsDIV.innerHTML += msg;
+            continue;
+        }
+        // Go through the linked-list here
+        var node = tree.m_first;
+        while (node !== null)
+        {
+            // Make sure the node is actually in the tree. It shouldn't be in the linked-list
+            // if it's not in the tree
+            if (allNodesInTree.indexOf(node) === -1)
+            {
+                var msg = "<font color='red'>" +
+                    (i+1).toString() + ". FAIL: Node in linked-list is not in tree</font><br>";
+                resultsDIV.innerHTML += msg;
+                actual = null;
+                break;
+            }
+            
+            actual.push(node.value);
+            node = node.next;
+        }
+        if (actual === null) { continue; }
+        // See if test case passed or failed
+        if (!AreArraysEqual(expected, actual))
+        {
+            var msg = "<font color='red'>" +
+                (i+1).toString() + ". FAIL" +
+                "<br>&nbsp;&nbsp&nbsp;&nbsp;Expected: " + expected.toString() +
+                "<br>&nbsp;&nbsp&nbsp;&nbsp;Actual: " + actual.toString() +
+                "</font><br>";
+            resultsDIV.innerHTML += msg;
+            continue;
+        }
+        
+        // Now use the forEach function to build insertion-order array from the tree
+        actual = new Array();
+        tree.forEach(function(value, sender) { actual.push(value); }, true);
+        // See if test case passed or failed
+        if (AreArraysEqual(expected, actual))
+        {
+            resultsDIV.innerHTML +=
+                ("<font color='green'>" + (i+1).toString() + ". OK</font><br>");
+        }
+        else
+        {
+            var msg = "<font color='red'>" +
+                (i+1).toString() + ". FAIL" +
+                "<br>&nbsp;&nbsp&nbsp;&nbsp;Expected: " + expected.toString() +
+                "<br>&nbsp;&nbsp&nbsp;&nbsp;Actual: " + actual.toString() +
+                "</font><br>";
+            resultsDIV.innerHTML += msg;
+        }
+    }
+}
+
+function GetAllNodes(tree)
+{
+    var arr = new Array();
+    if (tree === undefined || tree === null) { return arr;}
+    
+    var nodes = new Array();
+    nodes.push(tree.m_root)
+    while (nodes.length > 0)
+    {
+        var node = nodes.pop();
+        if (node)
+        {
+            arr.push(node);
+            nodes.push(node.left);
+            nodes.push(node.right);
+        }
+    }
+    
+    return arr;
+}
+
+// Returns a string with an error message if any problems are found. Returns null if all
+// parent references are ok.
+function TestParentReferences(tree)
+{
+    // Special case for empty tree
+    if (tree.m_root === null) { return null; }
+    
+    // Verify the root node as a special case
+    if (tree.m_root.parent !== null)
+    {
+        return "FAIL: Root node parent is non-null";
+    }
+    
+    // Make a stack of nodes and push the root
+    var nodeCount = 0;
+    var nodes = new Array();
+    nodes.push(tree.m_root);
+    while (nodes.length > 0)
+    {
+        var node = nodes.pop();
+        if (node == null) { continue; }
+        nodeCount++;
+        
+        if (node.parent !== null)
+        {
+            // Make sure the node is the left or right child of its parent
+            if (node.parent.left !== node && node.parent.right !== node)
+            {
+                return "FAIL: Parent references test";
+            }
+        }
+        
+        // Push children
+        nodes.push(node.left);
+        nodes.push(node.right);
+    }
+    
+    // If we reach here => everything passed
+    return null;
+}
+
+// Evaluates the insertion-order linked-list and alerts if any problems are found.
+function ValidateLL(tree)
+{
+    var returnObj = { treeOK: true, messages: "" };
+    if (tree.m_first !== null)
+    {
+        if (tree.m_first.previous !== null)
+        {
+            returnObj.messages += "First node in linked list has a non-null previous reference\n";
+            returnObj.treeOK = false;
+        }
+        if (tree.m_last === null)
+        {
+            returnObj.messages += "First node in linked list is non-null, but last is null\n";
+            returnObj.treeOK = false;
+        }
+    }
+    if (tree.m_last !== null)
+    {
+        if (tree.m_last.next !== null)
+        {
+            returnObj.messages += "Last node in linked list (m_last) has a non-null next reference\n";
+            returnObj.treeOK = false;
+        }
+        if (tree.m_first === null)
+        {
+            returnObj.messages += "Last node in linked list (m_last) is non-null, but first is null\n";
+            returnObj.treeOK = false;
+        }
+    }
+    
+    // See if the linked-list has a loop
+    if (tree.m_first !== null)
+    {
+        var n1 = tree.m_first;
+        var n2 = tree.m_first.next;
+        while (n1 !== null && n2 !== null)
+        {
+            if (n1 === n2)
+            {
+                returnObj.messages += "Insertion-order linked-list has a loop\n";
+                returnObj.treeOK = false;
+                break;
+            }
+            
+            n1 = n1.next;
+            if (n2.next === null) { break; }
+            n2 = n2.next.next;
+        }
+    }
+    
+    if (returnObj.treeOK)
+    {
+        // Count the number of items in the linked-list and make sure it's the same as the number
+        // of nodes in the tree
+        var count = 0;
+        var node = tree.m_first;
+        while (node)
+        {
+            count++;
+            node = node.next;
+        }
+        if (count !== tree.count())
+        {
+            returnObj.messages += "Number of nodes in linked-list (" +
+                count + ") is not the same as number of nodes in tree (" +
+                tree.count() + ")";
+            returnObj.treeOK = false;
+        }
+    }
+    
+    return returnObj;
+}
+</script>
+
+<body onload="AllTests()">
+    <h2>Test results (5 groups total!):</h2><br>
+    <div id="resultsDIV"></div>
+</body>
+
+</html>
